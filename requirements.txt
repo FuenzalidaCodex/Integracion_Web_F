@@ -1,0 +1,6 @@
+django
+djangorestframework
+django-filter
+mysqlclient
+stripe
+pillow
