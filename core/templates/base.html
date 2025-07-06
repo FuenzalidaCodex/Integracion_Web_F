@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FERREMAS - {% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'index' %}">FERREMAS</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'customer_catalog' %}">Catálogo</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'customer_cart' %}">Carrito</a></li>
+                        {% if user.employee.role == 'admin' %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_user_management' %}">Usuarios</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_category_management' %}">Categorías</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_brand_management' %}">Marcas</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_coupon_management' %}">Cupones</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'admin_refund_management' %}">Reembolsos</a></li>
+                        {% elif user.employee.role == 'seller' %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'seller_orders' %}">Pedidos</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'seller_products' %}">Productos</a></li>
+                        {% elif user.employee.role == 'warehouse' %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'warehouse_orders' %}">Pedidos</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'warehouse_inventory' %}">Inventario</a></li>
+                        {% elif user.employee.role == 'accountant' %}
+                            <li class="nav-item"><a class="nav-link" href="{% url 'accountant_payments' %}">Pagos</a></li>
+                        {% endif %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'change_password' %}">Cambiar Contraseña</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Cerrar Sesión</a></li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Iniciar Sesión</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-4">
+        {% block content %}
+        {% endblock %}
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Admin{% endblock %}
+{% block content %}
+<h1>Dashboard Administrador</h1>
+<p>Gestiona usuarios, productos, categorías, marcas, cupones y reembolsos.</p>
+<div class="row">
+    <div class="col-md-3"><a href="{% url 'admin_user_management' %}" class="btn btn-primary">Gestionar Usuarios</a></div>
+    <div class="col-md-3"><a href="{% url 'admin_category_management' %}" class="btn btn-primary">Gestionar Categorías</a></div>
+    <div class="col-md-3"><a href="{% url 'admin_brand_management' %}" class="btn btn-primary">Gestionar Marcas</a></div>
+    <div class="col-md-3"><a href="{% url 'admin_coupon_management' %}" class="btn btn-primary">Gestionar Cupones</a></div>
+    <div class="col-md-3"><a href="{% url 'admin_refund_management' %}" class="btn btn-primary">Gestionar Reembolsos</a></div>
+</div>
+{% endblock %}

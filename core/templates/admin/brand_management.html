@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Marcas{% endblock %}
+{% block content %}
+<h1>Gestión de Marcas</h1>
+<form method="post" class="mb-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Crear Marca</button>
+</form>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for brand in brands %}
+        <tr>
+            <td>{{ brand.name }}</td>
+            <td>
+                <a href="{% url 'admin_brand_management' %}?edit={{ brand.id }}" class="btn btn-warning">Editar</a>
+                <a href="{% url 'admin_brand_management' %}?delete={{ brand.id }}" class="btn btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Usuarios{% endblock %}
+{% block content %}
+<h1>Gestión de Usuarios</h1>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.username }}</td>
+            <td>{{ user.employee.role|default:"Cliente" }}</td>
+            <td>
+                <a href="{% url 'admin_user_management' %}?edit={{ user.id }}" class="btn btn-warning">Editar</a>
+                <a href="{% url 'admin_user_management' %}?delete={{ user.id }}" class="btn btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

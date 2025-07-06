@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Cupones{% endblock %}
+{% block content %}
+<h1>Gestión de Cupones</h1>
+<form method="post" class="mb-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Crear Cupón</button>
+</form>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Monto</th>
+            <th>Válido Desde</th>
+            <th>Válido Hasta</th>
+            <th>Activo</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for coupon in coupons %}
+        <tr>
+            <td>{{ coupon.code }}</td>
+            <td>${{ coupon.amount }}</td>
+            <td>{{ coupon.valid_from }}</td>
+            <td>{{ coupon.valid_to }}</td>
+            <td>{{ coupon.active|yesno:"Sí,No" }}</td>
+            <td>
+                <a href="{% url 'admin_coupon_management' %}?edit={{ coupon.id }}" class="btn btn-warning">Editar</a>
+                <a href="{% url 'admin_coupon_management' %}?delete={{ coupon.id }}" class="btn btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

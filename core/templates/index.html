@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<h1>Bienvenido a FERREMAS</h1>
+<p>Explora nuestro catálogo de productos o gestiona tus tareas según tu rol.</p>
+{% if user.is_authenticated %}
+    <p>Hola, {{ user.username }}! {% if user.employee %}Rol: {{ user.employee.role }}{% endif %}</p>
+    <a href="{% url 'customer_catalog' %}" class="btn btn-primary">Ver Catálogo</a>
+{% else %}
+    <p>Inicia sesión para comenzar.</p>
+    <a href="{% url 'login' %}" class="btn btn-primary">Iniciar Sesión</a>
+{% endif %}
+{% endblock %}

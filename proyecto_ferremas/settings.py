@@ -37,7 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_countries',
     'rest_framework',
+    'django_filters',
     'core',
 ]
 
@@ -134,3 +136,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+STRIPE_PUBLISHABLE_KEY = 'pk_test_...'  # Reemplaza con tu clave pública de Stripe
+STRIPE_SECRET_KEY = 'sk_test_...'  # Reemplaza con tu clave secreta de Stripe
+STRIPE_WEBHOOK_SECRET = 'whsec_...'  # Reemplaza con tu webhook secret

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Reembolsos{% endblock %}
+{% block content %}
+<h1>Gestión de Reembolsos</h1>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Orden</th>
+            <th>Motivo</th>
+            <th>Aceptado</th>
+            <th>Fecha</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for refund in refunds %}
+        <tr>
+            <td>{{ refund.order.ref_code }}</td>
+            <td>{{ refund.reason|truncatewords:20 }}</td>
+            <td>{{ refund.accepted|yesno:"Sí,No" }}</td>
+            <td>{{ refund.created_at }}</td>
+            <td>
+                <a href="{% url 'admin_refund_management' %}?edit={{ refund.id }}" class="btn btn-warning">Editar</a>
+                <a href="{% url 'admin_refund_management' %}?delete={{ refund.id }}" class="btn btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

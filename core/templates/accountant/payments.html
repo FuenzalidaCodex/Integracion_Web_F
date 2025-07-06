@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Pagos - Contador{% endblock %}
+{% block content %}
+<h1>Gestión de Pagos</h1>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Orden</th>
+            <th>Monto</th>
+            <th>Método</th>
+            <th>Confirmado</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for payment in payments %}
+        <tr>
+            <td>{{ payment.order.ref_code }}</td>
+            <td>${{ payment.amount }}</td>
+            <td>{{ payment.method }}</td>
+            <td>{{ payment.confirmed|yesno:"Sí,No" }}</td>
+            <td>
+                {% if not payment.confirmed %}
+                <form method="post" action="{% url 'accountant_payments' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="payment_id" value="{{ payment.id }}">
+                    <input type="hidden" name="action" value="confirm">
+                    <button type="submit" class="btn btn-success">Confirmar</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

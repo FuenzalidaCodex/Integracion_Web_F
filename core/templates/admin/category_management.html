@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Gestión de Categorías{% endblock %}
+{% block content %}
+<h1>Gestión de Categorías</h1>
+<form method="post" class="mb-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Crear Categoría</button>
+</form>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category in categories %}
+        <tr>
+            <td>{{ category.name }}</td>
+            <td>{{ category.description|default:"Sin descripción" }}</td>
+            <td>
+                <a href="{% url 'admin_category_management' %}?edit={{ category.id }}" class="btn btn-warning">Editar</a>
+                <a href="{% url 'admin_category_management' %}?delete={{ category.id }}" class="btn btn-danger">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

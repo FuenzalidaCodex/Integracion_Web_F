@@ -4,3 +4,4 @@ django-filter
 mysqlclient
 stripe
 pillow
+django_countries

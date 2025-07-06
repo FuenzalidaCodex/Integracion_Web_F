@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Carrito{% endblock %}
+{% block content %}
+<h1>Carrito de Compras</h1>
+{% if cart.items.all %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio Unitario</th>
+            <th>Total</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in cart.items.all %}
+        <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>${{ item.price }}</td>
+            <td>${{ item.get_total_price }}</td>
+            <td>
+                <form method="post" action="{% url 'customer_cart' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                    <input type="hidden" name="action" value="remove">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p><strong>Total Carrito: ${{ cart.get_total }}</strong></p>
+<a href="{% url 'customer_checkout' %}" class="btn btn-primary">Proceder al Pago</a>
+{% else %}
+<p>Tu carrito está vacío.</p>
+<a href="{% url 'customer_catalog' %}" class="btn btn-primary">Volver al Catálogo</a>
+{% endif %}
+{% endblock %}
