@@ -4,6 +4,7 @@ from django.utils import timezone
 from django_countries.fields import CountryField
 from django.db.models.signals import post_save
 from django.conf import settings
+from django.utils.text import slugify
 
 # Modelo para categorías de productos (ej: herramientas, pinturas)
 class Category(models.Model):
@@ -22,23 +23,41 @@ class Brand(models.Model):
 
 # Modelo para productos
 class Product(models.Model):
-    name = models.CharField(max_length=100, unique=True)  # Nombre único del producto
-    description = models.TextField()  # Descripción detallada
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')  # Relación con categoría
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')  # Relación con marca
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio en CLP
-    discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Precio con descuento
-    stock = models.PositiveIntegerField(default=0)  # Cantidad en inventario
-    image = models.ImageField(upload_to='products/', blank=True, null=True)  # Imagen del producto
-    slug = models.SlugField(unique=True, blank=True)  # Slug para URLs amigables
-    created_at = models.DateTimeField(auto_now_add=True)  # Fecha de creación
-    updated_at = models.DateTimeField(auto_now=True)  # Fecha de actualización
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    description = models.TextField()
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    stock = models.PositiveIntegerField(default=0)
+    image = models.ImageField(upload_to='products/', blank=True, null=True)
+    slug = models.SlugField(unique=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
     def get_final_price(self):
-        return self.discount_price if self.discount_price else self.price  # Retorna precio final (con o sin descuento)
+        return self.discount_price if self.discount_price else self.price
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = f"FER-{self.id or Product.objects.count() + 1:05d}"
+        if not self.slug:  # [NUEVO] Generar slug si no existe
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+        PriceHistory.objects.create(product=self, price=self.price)
+
+# [CAMBIO] Nuevo modelo para historial de precios
+class PriceHistory(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.product.name} - {self.price} at {self.created_at}"
 
 # Modelo para el perfil de usuario con integración de Stripe
 class UserProfile(models.Model):

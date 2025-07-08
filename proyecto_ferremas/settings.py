@@ -141,3 +141,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STRIPE_PUBLISHABLE_KEY = 'pk_test_...'  # Reemplaza con tu clave pública de Stripe
 STRIPE_SECRET_KEY = 'sk_test_...'  # Reemplaza con tu clave secreta de Stripe
 STRIPE_WEBHOOK_SECRET = 'whsec_...'  # Reemplaza con tu webhook secret
+
+LOGIN_URL = '/login/'

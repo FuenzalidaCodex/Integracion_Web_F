@@ -11,3 +11,7 @@ class IsWarehouse(permissions.BasePermission):
 class IsAccountant(permissions.BasePermission):
     def has_permission(self, request, view):
         return hasattr(request.user, 'employee') and request.user.employee.role == 'accountant'
+
+class IsAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return hasattr(request.user, 'employee') and request.user.employee.role == 'admin'

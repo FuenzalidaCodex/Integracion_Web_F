@@ -1,7 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import Product, Category, Brand, Cart, CartItem, Order, OrderItem, Payment, Address, Coupon, Refund, Employee, UserProfile
+from .models import Product, Category, Brand, Cart, CartItem, Order, OrderItem, Payment, Address, Coupon, Refund, Employee, UserProfile, PriceHistory  # [CAMBIO] Añadir PriceHistory a las importaciones
+
+# [CAMBIO] Nuevo serializador para el historial de precios
+class PriceHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceHistory
+        fields = ['price', 'created_at']  # Serializa precio y fecha
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,10 +30,12 @@ class ProductSerializer(serializers.ModelSerializer):
     brand = BrandSerializer(read_only=True)
     brand_id = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), source='brand', write_only=True)
     final_price = serializers.SerializerMethodField()  # Campo calculado para precio final
+    brand_code = serializers.CharField(source='brand.name', read_only=True)  # [CAMBIO] Campo para el "Código" (nombre de la marca)
+    price_history = PriceHistorySerializer(many=True, read_only=True)  # [CAMBIO] Campo para el historial de precios
 
     class Meta:
         model = Product
-        fields = ['id', 'name', 'description', 'category', 'category_id', 'brand', 'brand_id', 'price', 'discount_price', 'final_price', 'stock', 'image', 'slug', 'created_at', 'updated_at']  # Serializa producto
+        fields = ['id', 'code', 'name', 'description', 'category', 'category_id', 'brand', 'brand_id', 'brand_code', 'price', 'discount_price', 'final_price', 'stock', 'image', 'slug', 'created_at', 'updated_at', 'price_history']  # [CAMBIO] Añadir code, brand_code, price_history
 
     def get_final_price(self, obj):
         return obj.get_final_price()  # Usa el método del modelo

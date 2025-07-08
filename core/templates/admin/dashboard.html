@@ -1,13 +1,94 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard Admin{% endblock %}
+{% block title %}Dashboard - Admin{% endblock %}
 {% block content %}
-<h1>Dashboard Administrador</h1>
-<p>Gestiona usuarios, productos, categorías, marcas, cupones y reembolsos.</p>
-<div class="row">
-    <div class="col-md-3"><a href="{% url 'admin_user_management' %}" class="btn btn-primary">Gestionar Usuarios</a></div>
-    <div class="col-md-3"><a href="{% url 'admin_category_management' %}" class="btn btn-primary">Gestionar Categorías</a></div>
-    <div class="col-md-3"><a href="{% url 'admin_brand_management' %}" class="btn btn-primary">Gestionar Marcas</a></div>
-    <div class="col-md-3"><a href="{% url 'admin_coupon_management' %}" class="btn btn-primary">Gestionar Cupones</a></div>
-    <div class="col-md-3"><a href="{% url 'admin_refund_management' %}" class="btn btn-primary">Gestionar Reembolsos</a></div>
-</div>
+  <h1>Dashboard Administrador</h1>
+  {% if messages %}
+    <div class="alert-container">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <p>Gestiona usuarios, productos, categorías, marcas, cupones y reembolsos.</p>
+  <div class="row mb-4">
+    <div class="col-md-3 mb-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Usuarios</h5>
+          <p class="card-text">{{ total_users }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Productos</h5>
+          <p class="card-text">{{ total_products }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Total Órdenes</h5>
+          <p class="card-text">{{ total_orders }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card">
+        <div class="card-body text-center">
+          <h5 class="card-title">Reembolsos Pendientes</h5>
+          <p class="card-text">{{ pending_refunds }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <h2>Acciones Administrativas</h2>
+  <div class="row">
+    <div class="col-md-4 mb-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestionar Usuarios</h5>
+          <a href="{% url 'admin_user_management' %}" class="btn btn-primary w-100">Ir a Usuarios</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestionar Categorías</h5>
+          <a href="{% url 'admin_category_management' %}" class="btn btn-primary w-100">Ir a Categorías</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestionar Marcas</h5>
+          <a href="{% url 'admin_brand_management' %}" class="btn btn-primary w-100">Ir a Marcas</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestionar Cupones</h5>
+          <a href="{% url 'admin_coupon_management' %}" class="btn btn-primary w-100">Ir a Cupones</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 mb-3">
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">Gestionar Reembolsos</h5>
+          <a href="{% url 'admin_refund_management' %}" class="btn btn-primary w-100">Ir a Reembolsos</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <a href="{% url 'index' %}" class="btn btn-secondary mt-3">Volver al Inicio</a>
 {% endblock %}
