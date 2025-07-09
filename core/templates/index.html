@@ -45,7 +45,7 @@
       {% load static %}
       {% for product in featured_products %}
       <div class="col-md-4 mb-3">
-        <div class="card h-100">
+        <div class="card product-card h-100">
           {% if product.image and product.image.url %}
           <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}"
             style="height: 150px; object-fit: cover;">
@@ -55,7 +55,7 @@
           {% endif %}
           <div class="card-body">
             <h5 class="card-title">{{ product.name }}</h5>
-            <p class="card-text">${{ product.get_final_price|floatformat:2 }}</p>
+            <p class="card-text product-price">${{ product.get_final_price|floatformat:2 }}</p>
             <a href="{% url 'customer_catalog' %}?product={{ product.id }}" class="btn btn-primary"
               aria-label="Ver detalles de {{ product.name }}">Ver Detalles</a>
           </div>

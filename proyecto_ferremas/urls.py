@@ -21,6 +21,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path('admin/', admin.site.urls),  # Panel de administración
-    path('', include('core.urls')),  # Rutas de la aplicación core
+    path('', include('core.urls')),  # Rutas de la aplicación core primero
+    path('admin/', admin.site.urls),  # Panel de administración después
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)  # Servir archivos multimedia
