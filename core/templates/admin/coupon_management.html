@@ -13,16 +13,54 @@
     </div>
   {% endif %}
   <h2>{% if editing %}Editar Cupón{% else %}Crear Nuevo Cupón{% endif %}</h2>
-  <form method="post" class="mb-4">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-primary">
-      {% if editing %}Actualizar Cupón{% else %}Crear Cupón{% endif %}
-    </button>
-    {% if editing %}
-      <a href="{% url 'admin_coupon_management' %}" class="btn btn-secondary">Cancelar</a>
-    {% endif %}
-  </form>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="{{ form.code.id_for_label }}" class="form-label">Código</label>
+          <input type="text" name="{{ form.code.name }}" id="{{ form.code.id_for_label }}" class="form-control" value="{{ form.code.value|default:'' }}" aria-label="Código del cupón" required>
+          {% if form.code.errors %}
+            <div class="text-danger">{{ form.code.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.amount.id_for_label }}" class="form-label">Monto</label>
+          <input type="number" name="{{ form.amount.name }}" id="{{ form.amount.id_for_label }}" class="form-control" value="{{ form.amount.value|default:'' }}" aria-label="Monto del cupón" required>
+          {% if form.amount.errors %}
+            <div class="text-danger">{{ form.amount.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.valid_from.id_for_label }}" class="form-label">Válido Desde</label>
+          <input type="date" name="{{ form.valid_from.name }}" id="{{ form.valid_from.id_for_label }}" class="form-control" value="{{ form.valid_from.value|default:'' }}" aria-label="Fecha de inicio del cupón" required>
+          {% if form.valid_from.errors %}
+            <div class="text-danger">{{ form.valid_from.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.valid_to.id_for_label }}" class="form-label">Válido Hasta</label>
+          <input type="date" name="{{ form.valid_to.name }}" id="{{ form.valid_to.id_for_label }}" class="form-control" value="{{ form.valid_to.value|default:'' }}" aria-label="Fecha de fin del cupón" required>
+          {% if form.valid_to.errors %}
+            <div class="text-danger">{{ form.valid_to.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.active.id_for_label }}" class="form-label">Activo</label>
+          <input type="checkbox" name="{{ form.active.name }}" id="{{ form.active.id_for_label }}" class="form-check-input" {% if form.active.value %}checked{% endif %} aria-label="Estado del cupón">
+          {% if form.active.errors %}
+            <div class="text-danger">{{ form.active.errors }}</div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">
+          {% if editing %}Actualizar Cupón{% else %}Crear Cupón{% endif %}
+        </button>
+        {% if editing %}
+          <a href="{% url 'admin_coupon_management' %}" class="btn btn-secondary">Cancelar</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
   {% if coupons %}
     <table class="table table-striped table-bordered table-hover">
       <thead class="table-dark">

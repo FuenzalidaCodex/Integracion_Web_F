@@ -13,17 +13,62 @@
     </div>
   {% endif %}
   <h2>{% if editing %}Editar Usuario{% else %}Crear Nuevo Usuario{% endif %}</h2>
-  <form method="post" class="mb-4">
-    {% csrf_token %}
-    {{ user_form.as_p }}
-    {{ employee_form.as_p }}
-    <button type="submit" class="btn btn-primary">
-      {% if editing %}Actualizar Usuario{% else %}Crear Usuario{% endif %}
-    </button>
-    {% if editing %}
-      <a href="{% url 'admin_user_management' %}" class="btn btn-secondary">Cancelar</a>
-    {% endif %}
-  </form>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="{{ user_form.username.id_for_label }}" class="form-label">Nombre de Usuario</label>
+          <input type="text" name="{{ user_form.username.name }}" id="{{ user_form.username.id_for_label }}" class="form-control" value="{{ user_form.username.value|default:'' }}" aria-label="Nombre de usuario" required>
+          {% if user_form.username.errors %}
+            <div class="text-danger">{{ user_form.username.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ user_form.email.id_for_label }}" class="form-label">Correo Electrónico</label>
+          <input type="email" name="{{ user_form.email.name }}" id="{{ user_form.email.id_for_label }}" class="form-control" value="{{ user_form.email.value|default:'' }}" aria-label="Correo electrónico">
+          {% if user_form.email.errors %}
+            <div class="text-danger">{{ user_form.email.errors }}</div>
+          {% endif %}
+        </div>
+        {% if not editing %}
+          <div class="mb-3">
+            <label for="{{ user_form.password1.id_for_label }}" class="form-label">Contraseña</label>
+            <input type="password" name="{{ user_form.password1.name }}" id="{{ user_form.password1.id_for_label }}" class="form-control" aria-label="Contraseña" required>
+            {% if user_form.password1.errors %}
+              <div class="text-danger">{{ user_form.password1.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="mb-3">
+            <label for="{{ user_form.password2.id_for_label }}" class="form-label">Confirmar Contraseña</label>
+            <input type="password" name="{{ user_form.password2.name }}" id="{{ user_form.password2.id_for_label }}" class="form-control" aria-label="Confirmar contraseña" required>
+            {% if user_form.password2.errors %}
+              <div class="text-danger">{{ user_form.password2.errors }}</div>
+            {% endif %}
+          </div>
+        {% endif %}
+        <div class="mb-3">
+          <label for="{{ employee_form.role.id_for_label }}" class="form-label">Rol</label>
+          <select name="{{ employee_form.role.name }}" id="{{ employee_form.role.id_for_label }}" class="form-control" aria-label="Rol del usuario">
+            <option value="">Cliente</option>
+            <option value="admin" {% if employee_form.role.value == 'admin' %}selected{% endif %}>Administrador</option>
+            <option value="seller" {% if employee_form.role.value == 'seller' %}selected{% endif %}>Vendedor</option>
+            <option value="warehouse" {% if employee_form.role.value == 'warehouse' %}selected{% endif %}>Bodeguero</option>
+            <option value="accountant" {% if employee_form.role.value == 'accountant' %}selected{% endif %}>Contador</option>
+          </select>
+          {% if employee_form.role.errors %}
+            <div class="text-danger">{{ employee_form.role.errors }}</div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">
+          {% if editing %}Actualizar Usuario{% else %}Crear Usuario{% endif %}
+        </button>
+        {% if editing %}
+          <a href="{% url 'admin_user_management' %}" class="btn btn-secondary">Cancelar</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
   {% if users %}
     <table class="table table-striped table-bordered table-hover">
       <thead class="table-dark">

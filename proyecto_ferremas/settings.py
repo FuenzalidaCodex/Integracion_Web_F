@@ -143,3 +143,5 @@ STRIPE_SECRET_KEY = 'sk_test_...'  # Reemplaza con tu clave secreta de Stripe
 STRIPE_WEBHOOK_SECRET = 'whsec_...'  # Reemplaza con tu webhook secret
 
 LOGIN_URL = '/login/'
+
+

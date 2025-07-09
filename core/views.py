@@ -24,8 +24,30 @@ from core.models import Employee
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib import messages
 from core.models import Cart, CartItem, Product
+from django.shortcuts import render
+from core.models import Product, Category, Brand
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
+from core.models import Address
+from core.forms import AddressForm
+from django import forms
+from django.contrib.auth.models import User
+from core.models import Employee
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+class UserForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']
+        widgets = {'password': forms.PasswordInput()}
+
+class EmployeeForm(forms.ModelForm):
+    class Meta:
+        model = Employee
+        fields = ['rut', 'first_name', 'last_name', 'role']
 
 # Forms for Template-Based Views
 class CategoryForm(forms.ModelForm):
@@ -112,7 +134,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
 
 class AddressViewSet(viewsets.ModelViewSet):
-    queryset = Address.objects.all()
+    queryset = Address.objects.all()  # This line is present now
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -215,17 +237,34 @@ class UserViewSet(viewsets.ModelViewSet):
 
 # Template-Based Views
 def index(request):
-    return render(request, 'index.html')
+    featured_products = Product.objects.filter(stock__gt=0).order_by('-id')[:3]  # Get 3 latest in-stock products
+    return render(request, 'index.html', {'featured_products': featured_products})
+
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Cuenta creada exitosamente. Inicia sesión para continuar.')
+            return redirect('login')
+    else:
+        form = UserCreationForm()
+    return render(request, 'register.html', {'form': form})
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('index')
     if request.method == 'POST':
         form = AuthenticationForm(request, data=request.POST)
         if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            if hasattr(user, 'employee') and user.employee.role == 'admin' and user.check_password(user.employee.rut.replace('-', '')):
-                return redirect('change_password')
-            return redirect('index')
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                messages.success(request, 'Bienvenido de nuevo.')
+                return redirect('index')
+        messages.error(request, 'Credenciales incorrectas. Por favor, intenta de nuevo.')
     else:
         form = AuthenticationForm()
     return render(request, 'login.html', {'form': form})
@@ -242,6 +281,8 @@ def change_password(request):
             form.save()
             messages.success(request, 'Contraseña cambiada exitosamente.')
             return redirect('index')
+        else:
+            messages.error(request, 'Por favor, corrige los errores en el formulario.')
     else:
         form = PasswordChangeForm(user=request.user)
     return render(request, 'change_password.html', {'form': form})
@@ -249,7 +290,26 @@ def change_password(request):
 # [CAMBIO] Remove login_required for public product catalog
 def customer_catalog(request):
     products = Product.objects.all()
-    return render(request, 'customer/catalog.html', {'products': products})
+    categories = Category.objects.all()
+    brands = Brand.objects.all()
+    
+    # Handle search and filtering
+    search_query = request.GET.get('search')
+    category_id = request.GET.get('category')
+    brand_id = request.GET.get('brand')
+    
+    if search_query:
+        products = products.filter(Q(name__icontains=search_query) | Q(description__icontains=search_query))
+    if category_id:
+        products = products.filter(category_id=category_id)
+    if brand_id:
+        products = products.filter(brand_id=brand_id)
+    
+    return render(request, 'customer/catalog.html', {
+        'products': products,
+        'categories': categories,
+        'brands': brands
+    })
 
 # [NUEVO] Add product detail view (public access)
 def customer_product_detail(request, slug):
@@ -293,6 +353,20 @@ def customer_cart(request):
                 messages.error(request, 'Cantidad inválida o no hay suficiente stock.')
         return redirect('customer_cart')
     return render(request, 'customer/cart.html', {'cart': cart})
+
+@login_required
+def customer_add_address(request):
+    if request.method == 'POST':
+        form = AddressForm(request.POST)
+        if form.is_valid():
+            address = form.save(commit=False)
+            address.user = request.user
+            address.save()
+            messages.success(request, 'Dirección añadida exitosamente.')
+            return redirect('customer_checkout')
+    else:
+        form = AddressForm()
+    return render(request, 'customer/add_address.html', {'form': form})
 
 # [CAMBIO] Ensure checkout requires login
 @login_required
@@ -606,16 +680,47 @@ def seller_products(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'seller':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
+    editing = False
+    product_to_edit = None
     if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Producto creado exitosamente.')
+        action = request.POST.get('action')
+        if action == 'delete':
+            product_id = request.POST.get('product_id')
+            product = get_object_or_404(Product, id=product_id)
+            product.delete()
+            messages.success(request, 'Producto eliminado exitosamente.')
             return redirect('seller_products')
+        else:
+            # Handle create or update
+            product_id = request.POST.get('product_id')
+            if product_id:
+                product_to_edit = get_object_or_404(Product, id=product_id)
+                form = ProductForm(request.POST, request.FILES, instance=product_to_edit)
+                editing = True
+            else:
+                form = ProductForm(request.POST, request.FILES)
+            if form.is_valid():
+                form.save()
+                messages.success(request, f'Producto {"actualizado" if product_id else "creado"} exitosamente.')
+                return redirect('seller_products')
     else:
-        form = ProductForm()
+        # Handle GET with edit query parameter
+        edit_id = request.GET.get('edit')
+        if edit_id:
+            product_to_edit = get_object_or_404(Product, id=edit_id)
+            form = ProductForm(instance=product_to_edit)
+            editing = True
+        else:
+            form = ProductForm()
+    
     products = Product.objects.all()
-    return render(request, 'seller/products.html', {'form': form, 'products': products})
+    return render(request, 'seller/products.html', {
+        'form': form,
+        'products': products,
+        'editing': editing,
+        'product_to_edit': product_to_edit
+    })
 
 # Warehouse Views
 @login_required
@@ -624,22 +729,43 @@ def warehouse_orders(request):
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
     if request.method == 'POST':
-        order_id = request.POST.get('order_id')
         action = request.POST.get('action')
+        order_id = request.POST.get('order_id')
         order = get_object_or_404(Order, id=order_id)
-        if action == 'prepare':
+        if action == 'prepare' and order.status == 'approved':
             order.status = 'prepared'
             order.save()
-            messages.success(request, 'Pedido preparado.')
+            messages.success(request, 'Orden preparada exitosamente.')
         return redirect('warehouse_orders')
     orders = Order.objects.filter(status__in=['approved', 'prepared'])
     return render(request, 'warehouse/orders.html', {'orders': orders})
+
+@login_required
+def warehouse_order_detail(request, order_id):
+    if not hasattr(request.user, 'employee') or request.user.employee.role != 'warehouse':
+        messages.error(request, 'Acceso denegado.')
+        return redirect('index')
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, 'warehouse/order_detail.html', {'order': order})
 
 @login_required
 def warehouse_inventory(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'warehouse':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'update_stock':
+            product_id = request.POST.get('product_id')
+            stock = int(request.POST.get('stock', 0))
+            product = get_object_or_404(Product, id=product_id)
+            if stock >= 0:
+                product.stock = stock
+                product.save()
+                messages.success(request, f'Stock de {product.name} actualizado exitosamente.')
+            else:
+                messages.error(request, 'El stock no puede ser negativo.')
+            return redirect('warehouse_inventory')
     products = Product.objects.all()
     return render(request, 'warehouse/inventory.html', {'products': products})
 
@@ -742,3 +868,4 @@ def stripe_webhook(request):
             return JsonResponse({'status': 'payment not found'}, status=404)
 
     return JsonResponse({'status': 'event handled'})
+

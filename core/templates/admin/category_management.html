@@ -13,16 +13,33 @@
     </div>
   {% endif %}
   <h2>{% if editing %}Editar Categoría{% else %}Crear Nueva Categoría{% endif %}</h2>
-  <form method="post" class="mb-4">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-primary">
-      {% if editing %}Actualizar Categoría{% else %}Crear Categoría{% endif %}
-    </button>
-    {% if editing %}
-      <a href="{% url 'admin_category_management' %}" class="btn btn-secondary">Cancelar</a>
-    {% endif %}
-  </form>
+  <div class="card">
+    <div class="card-body">
+      <form method="post" class="mb-4">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="{{ form.name.id_for_label }}" class="form-label">Nombre</label>
+          <input type="text" name="{{ form.name.name }}" id="{{ form.name.id_for_label }}" class="form-control" value="{{ form.name.value|default:'' }}" aria-label="Nombre de la categoría" required>
+          {% if form.name.errors %}
+            <div class="text-danger">{{ form.name.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.description.id_for_label }}" class="form-label">Descripción</label>
+          <textarea name="{{ form.description.name }}" id="{{ form.description.id_for_label }}" class="form-control" aria-label="Descripción de la categoría">{{ form.description.value|default:'' }}</textarea>
+          {% if form.description.errors %}
+            <div class="text-danger">{{ form.description.errors }}</div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">
+          {% if editing %}Actualizar Categoría{% else %}Crear Categoría{% endif %}
+        </button>
+        {% if editing %}
+          <a href="{% url 'admin_category_management' %}" class="btn btn-secondary">Cancelar</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
   {% if categories %}
     <table class="table table-striped table-bordered table-hover">
       <thead class="table-dark">

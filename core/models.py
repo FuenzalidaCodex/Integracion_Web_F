@@ -14,6 +14,10 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = 'Categoría'
+        verbose_name_plural = 'Categorías'
+
 # Modelo para marcas de productos (ej: Bosch, Makita)
 class Brand(models.Model):
     name = models.CharField(max_length=50, unique=True)  # Nombre único de la marca
@@ -21,13 +25,17 @@ class Brand(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        verbose_name = 'Marca'
+        verbose_name_plural = 'Marcas'
+
 # Modelo para productos
 class Product(models.Model):
     name = models.CharField(max_length=100, unique=True)
     code = models.CharField(max_length=20, unique=True, blank=True, null=True)
     description = models.TextField()
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products')
+    category = models.ForeignKey('Category', on_delete=models.CASCADE, related_name='products')
+    brand = models.ForeignKey('Brand', on_delete=models.CASCADE, related_name='products')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock = models.PositiveIntegerField(default=0)
@@ -44,29 +52,47 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.code:
-            self.code = f"FER-{self.id or Product.objects.count() + 1:05d}"
-        if not self.slug:  # [NUEVO] Generar slug si no existe
+            # Use a temporary code if saving for the first time
+            temp_code = f"FER-{Product.objects.count() + 1:05d}"
+            self.code = temp_code
+        if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
-        PriceHistory.objects.create(product=self, price=self.price)
+        # Update code with ID after saving
+        if self.code == temp_code:
+            self.code = f"FER-{self.id:05d}"
+            super().save(update_fields=['code'])
+        PriceHistory.objects.create(product=self, price=self.get_final_price())
 
-# [CAMBIO] Nuevo modelo para historial de precios
+    class Meta:
+        verbose_name = 'Producto'
+        verbose_name_plural = 'Productos'
+
+# Modelo para historial de precios
 class PriceHistory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_history')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='price_history')
     price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.product.name} - {self.price} at {self.created_at}"
 
+    class Meta:
+        verbose_name = 'Historial de Precios'
+        verbose_name_plural = 'Historial de Precios'
+
 # Modelo para el perfil de usuario con integración de Stripe
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # Relación uno a uno con usuario
-    stripe_customer_id = models.CharField(max_length=50, blank=True, null=True)  # ID de cliente en Stripe
-    one_click_purchasing = models.BooleanField(default=False)  # Opción de compra rápida
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    stripe_customer_id = models.CharField(max_length=50, blank=True, null=True)
+    one_click_purchasing = models.BooleanField(default=False)
 
     def __str__(self):
         return self.user.username
+
+    class Meta:
+        verbose_name = 'Perfil de Usuario'
+        verbose_name_plural = 'Perfiles de Usuario'
 
 # Modelo para direcciones de envío/facturación
 class Address(models.Model):
@@ -74,41 +100,53 @@ class Address(models.Model):
         ('B', 'Facturación'),
         ('S', 'Envío'),
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')  # Relación con usuario
-    street_address = models.CharField(max_length=100)  # Dirección principal
-    apartment_address = models.CharField(max_length=100, blank=True, null=True)  # Dirección secundaria
-    country = CountryField()  # País (usando django-countries)
-    zip_code = models.CharField(max_length=20)  # Código postal
-    address_type = models.CharField(max_length=1, choices=ADDRESS_TYPES)  # Tipo de dirección
-    default = models.BooleanField(default=False)  # Dirección predeterminada
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='addresses')
+    street_address = models.CharField(max_length=100)
+    apartment_address = models.CharField(max_length=100, blank=True, null=True)
+    country = CountryField()
+    zip_code = models.CharField(max_length=20)
+    address_type = models.CharField(max_length=1, choices=ADDRESS_TYPES)
+    default = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.user.username} - {self.address_type}"
+        return f"{self.user.username} - {self.get_address_type_display()}"
 
     class Meta:
-        verbose_name_plural = 'Addresses'
+        verbose_name = 'Dirección'
+        verbose_name_plural = 'Direcciones'
 
 # Modelo para el carrito de compras
 class Cart(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='carts')  # Relación con usuario
-    created_at = models.DateTimeField(default=timezone.now)  # Fecha de creación
-    updated_at = models.DateTimeField(auto_now=True)  # Fecha de actualización
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='carts')
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Cart {self.id} - {self.user.username}"
+        return f"Carrito {self.id} - {self.user.username}"
+
+    def get_total(self):
+        return sum(item.get_total_price() for item in self.items.all())
+
+    class Meta:
+        verbose_name = 'Carrito'
+        verbose_name_plural = 'Carritos'
 
 # Modelo para ítems del carrito
 class CartItem(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')  # Relación con carrito
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Relación con producto
-    quantity = models.PositiveIntegerField(default=1)  # Cantidad de ítems
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio unitario al momento de añadir
+    cart = models.ForeignKey('Cart', on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
 
     def get_total_price(self):
-        return self.quantity * self.price  # Calcula precio total del ítem
+        return self.quantity * self.price
+
+    class Meta:
+        verbose_name = 'Ítem de Carrito'
+        verbose_name_plural = 'Ítems de Carrito'
 
 # Modelo para pedidos
 class Order(models.Model):
@@ -119,40 +157,54 @@ class Order(models.Model):
         ('delivered', 'Entregado'),
     )
     DELIVERY_CHOICES = (
-        ('store', 'Retiro en tienda'),
-        ('home', 'Despacho a domicilio'),
+        ('store', 'Retiro en Tienda'),
+        ('home', 'Despacho a Domicilio'),
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')  # Relación con usuario
-    ref_code = models.CharField(max_length=20, unique=True, blank=True, null=True)  # Código de referencia único
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')  # Estado del pedido
-    delivery_method = models.CharField(max_length=20, choices=DELIVERY_CHOICES)  # Método de entrega
-    shipping_address = models.ForeignKey(Address, related_name='shipping_orders', on_delete=models.SET_NULL, blank=True, null=True)  # Dirección de envío
-    billing_address = models.ForeignKey(Address, related_name='billing_orders', on_delete=models.SET_NULL, blank=True, null=True)  # Dirección de facturación
-    created_at = models.DateTimeField(auto_now_add=True)  # Fecha de creación
-    updated_at = models.DateTimeField(auto_now=True)  # Fecha de actualización
-    coupon = models.ForeignKey('Coupon', on_delete=models.SET_NULL, blank=True, null=True)  # Cupón aplicado
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
+    ref_code = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    ordered_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    delivery_method = models.CharField(max_length=20, choices=DELIVERY_CHOICES)
+    shipping_address = models.ForeignKey('Address', related_name='shipping_orders', on_delete=models.SET_NULL, blank=True, null=True)
+    billing_address = models.ForeignKey('Address', related_name='billing_orders', on_delete=models.SET_NULL, blank=True, null=True)
+    coupon = models.ForeignKey('Coupon', on_delete=models.SET_NULL, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Order {self.ref_code} - {self.user.username}"
+        return f"Orden {self.ref_code} - {self.user.username}"
 
     def get_total(self):
         total = sum(item.get_total_price() for item in self.items.all())
-        if self.coupon:
+        if self.coupon and self.coupon.active:
             total -= self.coupon.amount
-        return max(total, 0)  # Asegura que el total no sea negativo
+        return max(total, 0)
+
+    def save(self, *args, **kwargs):
+        if not self.ref_code:
+            self.ref_code = f"ORD-{self.id or Order.objects.count() + 1:05d}"
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'Orden'
+        verbose_name_plural = 'Ordenes'
 
 # Modelo para ítems de pedido
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')  # Relación con pedido
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)  # Relación con producto
-    quantity = models.PositiveIntegerField(default=1)  # Cantidad
-    price = models.DecimalField(max_digits=10, decimal_places=2)  # Precio unitario al momento de la compra
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f"{self.quantity} x {self.product.name}"
 
     def get_total_price(self):
-        return self.quantity * self.price  # Calcula precio total del ítem
+        return self.quantity * self.price
+
+    class Meta:
+        verbose_name = 'Ítem de Orden'
+        verbose_name_plural = 'Ítems de Orden'
 
 # Modelo para pagos
 class Payment(models.Model):
@@ -161,50 +213,72 @@ class Payment(models.Model):
         ('credit', 'Crédito'),
         ('transfer', 'Transferencia'),
     )
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')  # Relación con pedido
-    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Monto del pago
-    method = models.CharField(max_length=20, choices=PAYMENT_METHODS)  # Método de pago
-    stripe_payment_intent_id = models.CharField(max_length=100, blank=True, null=True)  # ID de transacción de Stripe
-    confirmed = models.BooleanField(default=False)  # Estado de confirmación
-    confirmed_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True)  # Contador que confirma
-    created_at = models.DateTimeField(auto_now_add=True)  # Fecha de creación
+    order = models.OneToOneField('Order', on_delete=models.CASCADE, related_name='payment')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    stripe_payment_intent_id = models.CharField(max_length=100, blank=True, null=True)
+    confirmed = models.BooleanField(default=False)
+    confirmed_by = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True, related_name='confirmed_payments')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Payment for Order {self.order.ref_code}"
+        return f"Pago para Orden {self.order.ref_code}"
+
+    class Meta:
+        verbose_name = 'Pago'
+        verbose_name_plural = 'Pagos'
 
 # Modelo para cupones de descuento
 class Coupon(models.Model):
-    code = models.CharField(max_length=15, unique=True)  # Código único del cupón
-    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Monto del descuento
-    valid_from = models.DateTimeField()  # Fecha de inicio de validez
-    valid_to = models.DateTimeField()  # Fecha de fin de validez
-    active = models.BooleanField(default=True)  # Estado del cupón
+    code = models.CharField(max_length=15, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    valid_from = models.DateTimeField()
+    valid_to = models.DateTimeField()
+    active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.code
 
+    class Meta:
+        verbose_name = 'Cupón'
+        verbose_name_plural = 'Cupones'
+
 # Modelo para reembolsos
 class Refund(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='refunds')  # Relación con pedido
-    reason = models.TextField()  # Motivo del reembolso
-    accepted = models.BooleanField(default=False)  # Estado de aprobación
-    created_at = models.DateTimeField(auto_now_add=True)  # Fecha de solicitud
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='refunds')
+    reason = models.TextField()
+    accepted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Refund for Order {self.order.ref_code}"
+        return f"Reembolso para Orden {self.order.ref_code}"
+
+    class Meta:
+        verbose_name = 'Reembolso'
+        verbose_name_plural = 'Reembolsos'
 
 # Modelo para empleados
 class Employee(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')  # Relación con usuario
-    rut = models.CharField(max_length=12, unique=True)  # RUT único
-    first_name = models.CharField(max_length=50)  # Nombre
-    last_name = models.CharField(max_length=50)  # Apellido paterno
-    mother_last_name = models.CharField(max_length=50, blank=True, null=True)  # Apellido materno
-    role = models.CharField(max_length=15, choices=(('admin', 'Administrador'), ('seller', 'Vendedor'), ('warehouse', 'Bodeguero'), ('accountant', 'Contador')))  # Rol del empleado
-    created_at = models.DateTimeField(auto_now_add=True)  # Fecha de creación
+    ROLE_CHOICES = (
+        ('admin', 'Administrador'),
+        ('seller', 'Vendedor'),
+        ('warehouse', 'Bodeguero'),
+        ('accountant', 'Contador'),
+    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee')
+    rut = models.CharField(max_length=12, unique=True)
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    mother_last_name = models.CharField(max_length=50, blank=True, null=True)
+    role = models.CharField(max_length=15, choices=ROLE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.role})"
+        return f"{self.first_name} {self.last_name} ({self.get_role_display()})"
+
+    class Meta:
+        verbose_name = 'Empleado'
+        verbose_name_plural = 'Empleados'
 
 # Signal para crear UserProfile automáticamente al crear un usuario
 def userprofile_receiver(sender, instance, created, *args, **kwargs):

@@ -1,37 +1,39 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
+from core import views
+from core import api_views
 
 # Configurar el router para las APIs
 router = DefaultRouter()
-router.register(r'categories', views.CategoryViewSet)
-router.register(r'brands', views.BrandViewSet)
-router.register(r'products', views.ProductViewSet)
-router.register(r'addresses', views.AddressViewSet)
-router.register(r'carts', views.CartViewSet)
-router.register(r'orders', views.OrderViewSet)
-router.register(r'payments', views.PaymentViewSet)
-router.register(r'coupons', views.CouponViewSet)
-router.register(r'refunds', views.RefundViewSet)
-router.register(r'employees', views.EmployeeViewSet)
-router.register(r'userprofiles', views.UserProfileViewSet)
-router.register(r'users', views.UserViewSet)
+router.register(r'categories', api_views.CategoryViewSet)
+router.register(r'brands', api_views.BrandViewSet)
+router.register(r'products', api_views.ProductViewSet)
+router.register(r'addresses', api_views.AddressViewSet)
+router.register(r'carts', api_views.CartViewSet)
+router.register(r'orders', api_views.OrderViewSet)
+router.register(r'payments', api_views.PaymentViewSet)
+router.register(r'coupons', api_views.CouponViewSet)
+router.register(r'refunds', api_views.RefundViewSet)
+router.register(r'employees', api_views.EmployeeViewSet)
+router.register(r'userprofiles', api_views.UserProfileViewSet)
+router.register(r'users', api_views.UserViewSet)
 
 urlpatterns = [
     # Vistas principales
     path('', views.index, name='index'),
     path('login/', views.login_view, name='login'),
+    path('register/', views.register, name='register'),
     path('logout/', views.logout_view, name='logout'),
     path('change-password/', views.change_password, name='change_password'),
-    path('register/', views.register_view, name='register'),  # [NUEVO] Ruta para registro
-    path('contact/', views.contact_view, name='contact'),  # [NUEVO] Ruta para contacto
+    path('contact/', views.contact_view, name='contact'),
 
     # Vistas para clientes
     path('catalog/', views.customer_catalog, name='customer_catalog'),
-    path('catalog/<slug:slug>/', views.customer_product_detail, name='customer_product_detail'),  # [NUEVO] Ruta para detalle de producto
+    path('catalog/<slug:slug>/', views.customer_product_detail, name='customer_product_detail'),
     path('cart/', views.customer_cart, name='customer_cart'),
     path('checkout/', views.customer_checkout, name='customer_checkout'),
-    path('order/confirmation/<int:order_id>/', views.order_confirmation, name='order_confirmation'),  # [NUEVO] Ruta para confirmación de pedido
+    path('add-address/', views.customer_add_address, name='customer_add_address'),
+    path('order/confirmation/<int:order_id>/', views.order_confirmation, name='order_confirmation'),
 
     # Vistas para administradores
     path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -48,12 +50,13 @@ urlpatterns = [
     # Vistas para bodegueros
     path('warehouse/orders/', views.warehouse_orders, name='warehouse_orders'),
     path('warehouse/inventory/', views.warehouse_inventory, name='warehouse_inventory'),
+    path('warehouse/orders/<int:order_id>/', views.warehouse_order_detail, name='warehouse_order_detail'),
 
     # Vistas para contadores
     path('accountant/payments/', views.accountant_payments, name='accountant_payments'),
 
     # APIs
     path('api/', include(router.urls)),
-    path('api/create-payment-intent/', views.create_payment_intent, name='create_payment_intent'),
-    path('api/webhook/', views.stripe_webhook, name='stripe_webhook'),
+    path('api/create-payment-intent/', api_views.create_payment_intent, name='create_payment_intent'),
+    path('api/webhook/', api_views.stripe_webhook, name='stripe_webhook'),
 ]

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% block title %}Iniciar Sesión{% endblock %}
+{% block title %}Registrarse{% endblock %}
 {% block content %}
-  <h1>Iniciar Sesión</h1>
+  <h1>Registrarse</h1>
   {% if messages %}
     <div class="alert-container">
       {% for message in messages %}
@@ -24,19 +24,25 @@
           {% endif %}
         </div>
         <div class="mb-3">
-          <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
-          <input type="password" name="{{ form.password.name }}" id="{{ form.password.id_for_label }}" class="form-control" aria-label="Contraseña" required>
-          {% if form.password.errors %}
-            <div class="text-danger">{{ form.password.errors }}</div>
+          <label for="{{ form.password1.id_for_label }}" class="form-label">Contraseña</label>
+          <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}" class="form-control" aria-label="Contraseña" required>
+          {% if form.password1.errors %}
+            <div class="text-danger">{{ form.password1.errors }}</div>
           {% endif %}
         </div>
-        <button type="submit" class="btn btn-primary btn-lg">Iniciar Sesión</button>
+        <div class="mb-3">
+          <label for="{{ form.password2.id_for_label }}" class="form-label">Confirmar Contraseña</label>
+          <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}" class="form-control" aria-label="Confirmar contraseña" required>
+          {% if form.password2.errors %}
+            <div class="text-danger">{{ form.password2.errors }}</div>
+          {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg">Registrarse</button>
         <a href="{% url 'index' %}" class="btn btn-secondary btn-lg ms-2">Cancelar</a>
       </form>
     </div>
     <div class="card-footer">
       <a href="{% url 'index' %}" class="btn btn-secondary">Volver al Inicio</a>
-      <a href="{% url 'register' %}" class="btn btn-outline-primary ms-2">Registrarse</a>
     </div>
   </div>
 {% endblock %}
