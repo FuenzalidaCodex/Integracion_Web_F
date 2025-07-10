@@ -37,7 +37,8 @@
         {% endfor %}
       </tbody>
     </table>
-    <p><strong>Total: ${{ cart.get_total|floatformat:2 }}</strong></p>
+    <p><strong>Total (CLP): ${{ cart.get_total|floatformat:2 }}</strong></p>
+    <p><strong>Total (USD): <span id="total-usd">Cargando...</span></strong></p>
     <form id="checkout-form" method="post">
       {% csrf_token %}
       <div class="mb-3">
@@ -89,12 +90,42 @@
   const checkoutButton = document.getElementById('checkout-button');
   const deliveryMethod = document.getElementById('delivery_method');
   const shippingAddress = document.getElementById('shipping_address');
+  const totalUsdElement = document.getElementById('total-usd');
+  const cartTotal = {{ cart.get_total|floatformat:2 }};
+
+  // Obtener conversión de moneda al cargar la página
+  async function fetchCurrencyConversion() {
+    try {
+      const response = await fetch('/api/convert-currency/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+          amount_clp: cartTotal,
+          target_currency: 'USD'
+        })
+      });
+      if (!response.ok) {
+        throw new Error('Error al obtener conversión de moneda');
+      }
+      const data = await response.json();
+      totalUsdElement.textContent = `$${data.converted_amount.toFixed(2)}`;
+    } catch (error) {
+      totalUsdElement.textContent = 'No disponible';
+      console.error('Error:', error);
+    }
+  }
 
   function updateButtonState() {
     checkoutButton.disabled = !(deliveryMethod.value && shippingAddress.value);
   }
   form.addEventListener('change', updateButtonState);
-  document.addEventListener('DOMContentLoaded', updateButtonState);
+  document.addEventListener('DOMContentLoaded', () => {
+    updateButtonState();
+    fetchCurrencyConversion();
+  });
 
   const cartItems = {{ cart_items_json|safe }};
 
@@ -104,7 +135,7 @@
     checkoutButton.textContent = 'Redirigiendo...';
 
     try {
-      const response = await fetch('/create-checkout-session/', {
+      const response = await fetch('/api/create-checkout-session/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

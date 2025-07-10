@@ -19,3 +19,8 @@ Solicitud POST: <QueryDict: {'csrfmiddlewaretoken': ['qXEqoPvPaOTx5Kq5GhBqaE9fwx
 Añadido nuevo ítem: Caja Truper, Cantidad 1
 Carrito para Cliente_Premium: ID 3, Creado: False
 Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1', 'Caja Truper x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Solicitud POST: <QueryDict: {'csrfmiddlewaretoken': ['roAZteXmO4YwzkPHe8gcASQUusI5S3LQ6fkwx3qjpKVoePBmm3ubvApvtpxnOFhg'], 'action': ['add'], 'product_id': ['2'], 'quantity': ['2']}>
+Actualizado Alicate Bahco: Cantidad 3
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 3', 'Andamio x 1', 'Caja Truper x 1']

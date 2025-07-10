@@ -7,6 +7,7 @@ from django.conf import settings
 import stripe
 import json
 import time
+import requests
 from core.models import Category, Brand, Product, Address, Cart, CartItem, Order, OrderItem, Payment, Coupon, Refund, Employee, UserProfile
 from core.serializers import (
     CategorySerializer, BrandSerializer, ProductSerializer, AddressSerializer,
@@ -15,6 +16,10 @@ from core.serializers import (
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+# Configuración de la API de conversión de monedas
+EXCHANGE_API_URL = "https://api.exchangerate-api.com/v4/latest/CLP"  # Alternativa para pruebas
+# Para Banco Central de Chile: "https://api.sbif.cl/api-sbifv3/recursos_api/dolar"
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -54,7 +59,6 @@ class AddressViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
 
-    
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
@@ -127,13 +131,19 @@ class UserViewSet(viewsets.ModelViewSet):
 def create_payment_intent(request):
     if request.method == 'POST':
         data = json.loads(request.body)
-        order = Order.objects.get(id=data['order_id'])
-        intent = stripe.PaymentIntent.create(
-            amount=int(order.get_total() * 100),
-            currency='clp',
-            metadata={'order_id': order.id}
-        )
-        return JsonResponse({'clientSecret': intent.client_secret})
+        order_id = data.get('order_id')
+        try:
+            order = Order.objects.get(id=order_id)
+            intent = stripe.PaymentIntent.create(
+                amount=int(order.get_total() * 100),
+                currency='clp',
+                metadata={'order_id': order.id}
+            )
+            return JsonResponse({'clientSecret': intent.client_secret})
+        except Order.DoesNotExist:
+            return JsonResponse({'error': 'Orden no encontrada'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
     return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 @csrf_exempt
@@ -161,3 +171,32 @@ def stripe_webhook(request):
         order.save()
 
     return JsonResponse({'status': 'success'}, status=200)
+
+@csrf_exempt
+def convert_currency(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            amount_clp = data.get('amount_clp')
+            target_currency = data.get('target_currency', 'USD')
+            if not amount_clp:
+                return JsonResponse({'error': 'Monto no proporcionado'}, status=400)
+
+            # Llamada a la API de conversión de monedas
+            response = requests.get(EXCHANGE_API_URL)
+            if response.status_code != 200:
+                return JsonResponse({'error': 'Error al obtener tasas de cambio'}, status=500)
+
+            rates = response.json().get('rates', {})
+            if target_currency not in rates:
+                return JsonResponse({'error': f'Moneda {target_currency} no soportada'}, status=400)
+
+            converted_amount = float(amount_clp) * rates[target_currency]
+            return JsonResponse({
+                'amount_clp': amount_clp,
+                'target_currency': target_currency,
+                'converted_amount': round(converted_amount, 2)
+            }, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
