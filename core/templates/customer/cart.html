@@ -34,18 +34,20 @@
                     {% csrf_token %}
                     <input type="hidden" name="item_id" value="{{ item.id }}">
                     <input type="hidden" name="action" value="update">
-                    <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control d-inline-block" style="width: 100px;">
-                    <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
+                    <div class="input-group" style="width: 200px;">
+                      <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="{{ item.product.stock }}" class="form-control">
+                      <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
+                    </div>
                   </form>
                 </td>
                 <td>${{ item.price|floatformat:2 }}</td>
                 <td>${{ item.get_total_price|floatformat:2 }}</td>
                 <td>
-                  <form method="post" action="{% url 'customer_cart' %}" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar este producto del carrito?');">
+                  <form method="post" action="{% url 'customer_cart' %}" class="d-inline" onsubmit="return confirm('¿Estás seguro de eliminar {{ item.product.name }} del carrito?');">
                     {% csrf_token %}
                     <input type="hidden" name="item_id" value="{{ item.id }}">
                     <input type="hidden" name="action" value="remove">
-                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                    <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
                   </form>
                 </td>
               </tr>

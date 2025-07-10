@@ -8,6 +8,7 @@ from django import forms
 from django.contrib import messages
 import stripe
 import json
+import logging
 from django.conf import settings
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
@@ -16,27 +17,14 @@ from .models import Product, Category, Brand, Cart, CartItem, Order, OrderItem, 
 from .serializers import ProductSerializer, CategorySerializer, BrandSerializer, CartSerializer, OrderSerializer, PaymentSerializer, AddressSerializer, CouponSerializer, RefundSerializer, EmployeeSerializer, UserProfileSerializer, UserSerializer
 from django.contrib.auth.models import User
 from .permissions import IsSeller, IsWarehouse, IsAccountant, IsAdmin
-from django.contrib.auth.models import User
-from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib import messages
-from core.forms import UserForm, EmployeeForm
-from core.models import Employee
-from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib import messages
-from core.models import Cart, CartItem, Product
-from django.shortcuts import render
-from core.models import Product, Category, Brand
+from .forms import UserForm, EmployeeForm, AddressForm
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, redirect, render
-from django.contrib import messages
-from core.models import Address
-from core.forms import AddressForm
-from django import forms
-from django.contrib.auth.models import User
-from core.models import Employee
+from django.core.serializers.json import DjangoJSONEncoder
+
+# Configurar logging
+logger = logging.getLogger(__name__)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
-
 
 class UserForm(forms.ModelForm):
     class Meta:
@@ -49,7 +37,6 @@ class EmployeeForm(forms.ModelForm):
         model = Employee
         fields = ['rut', 'first_name', 'last_name', 'role']
 
-# Forms for Template-Based Views
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
@@ -70,7 +57,6 @@ class CouponForm(forms.ModelForm):
         model = Coupon
         fields = ['code', 'amount', 'valid_from', 'valid_to', 'active']
 
-# Permission Classes
 class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return hasattr(request.user, 'employee') and request.user.employee.role == 'admin'
@@ -87,7 +73,6 @@ class IsAccountant(permissions.BasePermission):
     def has_permission(self, request, view):
         return hasattr(request.user, 'employee') and request.user.employee.role == 'accountant'
 
-# API ViewSets
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -116,7 +101,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsSeller() | IsAdmin()]
-        return [permissions.AllowAny()]  # Public access for product listing and details
+        return [permissions.AllowAny()]
 
     @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
     def details(self, request, pk=None):
@@ -125,7 +110,6 @@ class ProductViewSet(viewsets.ModelViewSet):
         return Response({
             'Código del producto': product.code,
             'Marca': product.brand.name,
-            'Código': product.brand.name,
             'Nombre': product.name,
             'Precio': [
                 {'Fecha': history.created_at.isoformat(), 'Valor': float(history.price)}
@@ -134,7 +118,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         })
 
 class AddressViewSet(viewsets.ModelViewSet):
-    queryset = Address.objects.all()  # This line is present now
+    queryset = Address.objects.all()
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -235,18 +219,18 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
 
-# Template-Based Views
 def index(request):
-    featured_products = Product.objects.filter(stock__gt=0).order_by('-id')[:3]  # Get 3 latest in-stock products
+    featured_products = Product.objects.filter(stock__gt=0).order_by('-id')[:3]
     return render(request, 'index.html', {'featured_products': featured_products})
 
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         if form.is_valid():
-            form.save()
-            messages.success(request, 'Cuenta creada exitosamente. Inicia sesión para continuar.')
-            return redirect('login')
+            user = form.save()
+            login(request, user)
+            messages.success(request, 'Registro exitoso. ¡Bienvenido!')
+            return redirect('index')
     else:
         form = UserCreationForm()
     return render(request, 'register.html', {'form': form})
@@ -287,13 +271,11 @@ def change_password(request):
         form = PasswordChangeForm(user=request.user)
     return render(request, 'change_password.html', {'form': form})
 
-# [CAMBIO] Remove login_required for public product catalog
 def customer_catalog(request):
     products = Product.objects.all()
     categories = Category.objects.all()
     brands = Brand.objects.all()
     
-    # Handle search and filtering
     search_query = request.GET.get('search')
     category_id = request.GET.get('category')
     brand_id = request.GET.get('brand')
@@ -311,47 +293,93 @@ def customer_catalog(request):
         'brands': brands
     })
 
-# [NUEVO] Add product detail view (public access)
 def customer_product_detail(request, slug):
     product = get_object_or_404(Product, slug=slug)
     return render(request, 'customer/product_detail.html', {'product': product})
 
-# [CAMBIO] Ensure cart requires login
 @login_required
 def customer_cart(request):
     cart, created = Cart.objects.get_or_create(user=request.user)
+    logger.debug(f"Carrito para {request.user.username}: ID {cart.id}, Creado: {created}")
+
     if request.method == 'POST':
+        logger.debug(f"Solicitud POST: {request.POST}")
         action = request.POST.get('action')
         if action == 'add':
             product_id = request.POST.get('product_id')
-            quantity = int(request.POST.get('quantity', 1))
-            product = get_object_or_404(Product, id=product_id)
-            if product.stock >= quantity:
-                cart_item, item_created = CartItem.objects.get_or_create(
-                    cart=cart, product=product, defaults={'price': product.get_final_price()}
-                )
-                if not item_created:
-                    cart_item.quantity += quantity
-                cart_item.save()
-                messages.success(request, 'Producto añadido al carrito.')
-            else:
-                messages.error(request, 'No hay suficiente stock.')
+            quantity = request.POST.get('quantity', '1')
+            try:
+                quantity = int(quantity)
+                product = get_object_or_404(Product, id=product_id)
+                if quantity <= 0:
+                    messages.error(request, 'La cantidad debe ser mayor a 0.')
+                    logger.warning(f"Cantidad inválida: {quantity}")
+                elif quantity <= product.stock:
+                    cart_item, item_created = CartItem.objects.get_or_create(
+                        cart=cart, product=product, defaults={'price': product.get_final_price(), 'quantity': quantity}
+                    )
+                    if not item_created:
+                        new_quantity = cart_item.quantity + quantity
+                        if new_quantity <= product.stock:
+                            cart_item.quantity = new_quantity
+                            cart_item.price = product.get_final_price()
+                            cart_item.save()
+                            messages.success(request, f'Se añadieron {quantity} unidad(es) de {product.name} al carrito.')
+                            logger.debug(f"Actualizado {product.name}: Cantidad {cart_item.quantity}")
+                        else:
+                            messages.error(request, f'No hay suficiente stock para añadir {quantity} unidad(es) más.')
+                            logger.warning(f"Stock insuficiente para {product.name}: Solicitado {new_quantity}, Disponible {product.stock}")
+                    else:
+                        messages.success(request, f'{product.name} añadido al carrito.')
+                        logger.debug(f"Añadido nuevo ítem: {product.name}, Cantidad {quantity}")
+                else:
+                    messages.error(request, f'No hay suficiente stock. Solo hay {product.stock} unidad(es) disponibles.')
+                    logger.warning(f"Stock insuficiente para {product.name}: Solicitado {quantity}, Disponible {product.stock}")
+            except ValueError:
+                messages.error(request, 'Cantidad inválida.')
+                logger.error(f"Cantidad no válida: {quantity}")
+            except Product.DoesNotExist:
+                messages.error(request, 'Producto no encontrado.')
+                logger.error(f"Producto no encontrado: ID {product_id}")
         elif action == 'remove':
             item_id = request.POST.get('item_id')
-            cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
-            cart_item.delete()
-            messages.success(request, 'Producto eliminado del carrito.')
+            try:
+                cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+                product_name = cart_item.product.name
+                cart_item.delete()
+                messages.success(request, f'{product_name} eliminado del carrito.')
+                logger.debug(f"Eliminado {product_name}: ID {item_id}")
+            except CartItem.DoesNotExist:
+                messages.error(request, 'Ítem no encontrado.')
+                logger.error(f"Ítem no encontrado: ID {item_id}")
         elif action == 'update':
             item_id = request.POST.get('item_id')
-            quantity = int(request.POST.get('quantity', 1))
-            cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
-            if quantity <= cart_item.product.stock and quantity > 0:
-                cart_item.quantity = quantity
-                cart_item.save()
-                messages.success(request, 'Cantidad actualizada en el carrito.')
-            else:
-                messages.error(request, 'Cantidad inválida o no hay suficiente stock.')
+            quantity = request.POST.get('quantity', '1')
+            try:
+                quantity = int(quantity)
+                cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+                if quantity <= 0:
+                    messages.error(request, 'La cantidad debe ser mayor a 0.')
+                    logger.warning(f"Cantidad inválida: {quantity}")
+                elif quantity <= cart_item.product.stock:
+                    cart_item.quantity = quantity
+                    cart_item.price = cart_item.product.get_final_price()
+                    cart_item.save()
+                    messages.success(request, f'Cantidad de {cart_item.product.name} actualizada.')
+                    logger.debug(f"Actualizado {cart_item.product.name}: Nueva cantidad {quantity}")
+                else:
+                    messages.error(request, f'No hay suficiente stock. Solo hay {cart_item.product.stock} unidad(es) disponibles.')
+                    logger.warning(f"Stock insuficiente para {cart_item.product.name}: Solicitado {quantity}, Disponible {cart_item.product.stock}")
+            except ValueError:
+                messages.error(request, 'Cantidad inválida.')
+                logger.error(f"Cantidad no válida: {quantity}")
+            except CartItem.DoesNotExist:
+                messages.error(request, 'Ítem no encontrado.')
+                logger.error(f"Ítem no encontrado: ID {item_id}")
         return redirect('customer_cart')
+
+    items = cart.items.all()
+    logger.debug(f"Ítems en carrito ID {cart.id}: {[f'{item.product.name} x {item.quantity}' for item in items]}")
     return render(request, 'customer/cart.html', {'cart': cart})
 
 @login_required
@@ -365,54 +393,110 @@ def customer_add_address(request):
             messages.success(request, 'Dirección añadida exitosamente.')
             return redirect('customer_checkout')
     else:
-        form = AddressForm()
+        form = AddressForm(initial={'country': 'CL'})
     return render(request, 'customer/add_address.html', {'form': form})
 
-# [CAMBIO] Ensure checkout requires login
 @login_required
 def customer_checkout(request):
     cart, created = Cart.objects.get_or_create(user=request.user)
     addresses = Address.objects.filter(user=request.user)
+    cart_items = [
+        {
+            'product_id': item.product.id,
+            'quantity': item.quantity,
+            'price': float(item.price),
+            'total_price': float(item.get_total_price()),
+            'name': item.product.name
+        }
+        for item in cart.items.all()
+    ]
+    cart_total_cents = int(cart.get_total() * 100)
     return render(request, 'customer/checkout.html', {
         'cart': cart,
         'addresses': addresses,
-        'publishable_key': settings.STRIPE_PUBLISHABLE_KEY
+        'publishable_key': settings.STRIPE_PUBLISHABLE_KEY,
+        'cart_items_json': json.dumps(cart_items, cls=DjangoJSONEncoder),
+        'cart_total_cents': cart_total_cents
     })
 
-# [NUEVO] Add user registration view
-def register_view(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, 'Registro exitoso. ¡Bienvenido!')
-            return redirect('index')
-    else:
-        form = UserCreationForm()
-    return render(request, 'register.html', {'form': form})
+@csrf_exempt
+def create_checkout_session(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        cart_items = data.get('cart_items')
+        delivery_method = data.get('delivery_method')
+        shipping_address_id = data.get('shipping_address_id')
 
-# [NUEVO] Add contact page view (public access, for Paso 2)
+        if not (cart_items and delivery_method and shipping_address_id):
+            return JsonResponse({'error': 'Datos incompletos'}, status=400)
+
+        shipping_address = get_object_or_404(Address, id=shipping_address_id, user=request.user)
+        
+        # Crear la orden
+        order = Order.objects.create(
+            user=request.user,
+            delivery_method=delivery_method,
+            shipping_address=shipping_address,
+            status='pending'
+        )
+
+        # Añadir ítems a la orden
+        for item in cart_items:
+            product = get_object_or_404(Product, id=item['product_id'])
+            if product.stock < item['quantity']:
+                order.delete()
+                return JsonResponse({'error': f'Stock insuficiente para {product.name}'}, status=400)
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=item['quantity'],
+                price=item['price']
+            )
+
+        # Crear la sesión de Stripe Checkout
+        line_items = [{
+            'price_data': {
+                'currency': 'clp',
+                'product_data': {
+                    'name': item['name'],
+                },
+                'unit_amount': int(item['price'] * 100),
+            },
+            'quantity': item['quantity'],
+        } for item in cart_items]
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=line_items,
+            mode='payment',
+            success_url=request.build_absolute_uri('/order/confirmation/') + f'{order.id}/',
+            cancel_url=request.build_absolute_uri('/customer/checkout/'),
+            metadata={'order_id': order.id},
+            customer_email=request.user.email,
+            shipping_address_collection={'allowed_countries': ['CL']},
+        )
+
+        return JsonResponse({'sessionId': session.id})
+    except Exception as e:
+        logger.error(f"Error al crear sesión de checkout: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=400)
+
 def contact_view(request):
     if request.method == 'POST':
-        # Basic contact form handling (to be expanded in Paso 2)
         name = request.POST.get('name')
         email = request.POST.get('email')
         message = request.POST.get('message')
-        # For now, just display a success message
         messages.success(request, 'Mensaje enviado. Nos pondremos en contacto pronto.')
         return redirect('contact')
     return render(request, 'contact.html')
 
-# [NUEVO] Add order confirmation view
 @login_required
 def order_confirmation(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
     return render(request, 'customer/order_confirmation.html', {'order': order})
-
-# Admin Views
-from django.contrib.auth.models import User
-from core.models import Product, Order, Refund
 
 @login_required
 def admin_dashboard(request):
@@ -445,14 +529,13 @@ def admin_user_management(request):
         if action == 'delete':
             user_id = request.POST.get('user_id')
             user = get_object_or_404(User, id=user_id)
-            if user != request.user:  # Prevent self-deletion
+            if user != request.user:
                 user.delete()
                 messages.success(request, 'Usuario eliminado exitosamente.')
             else:
                 messages.error(request, 'No puedes eliminar tu propio usuario.')
             return redirect('admin_user_management')
         else:
-            # Handle create or update
             user_id = request.POST.get('user_id')
             if user_id:
                 user_to_edit = get_object_or_404(User, id=user_id)
@@ -471,7 +554,6 @@ def admin_user_management(request):
                 messages.success(request, f'Usuario {"actualizado" if user_id else "creado"} exitosamente.')
                 return redirect('admin_user_management')
     else:
-        # Handle GET with edit query parameter
         edit_id = request.GET.get('edit')
         if edit_id:
             user_to_edit = get_object_or_404(User, id=edit_id)
@@ -509,7 +591,6 @@ def admin_category_management(request):
             messages.success(request, 'Categoría eliminada exitosamente.')
             return redirect('admin_category_management')
         else:
-            # Handle create or update
             category_id = request.POST.get('category_id')
             if category_id:
                 category_to_edit = get_object_or_404(Category, id=category_id)
@@ -522,7 +603,6 @@ def admin_category_management(request):
                 messages.success(request, f'Categoría {"actualizada" if category_id else "creada"} exitosamente.')
                 return redirect('admin_category_management')
     else:
-        # Handle GET with edit query parameter
         edit_id = request.GET.get('edit')
         if edit_id:
             category_to_edit = get_object_or_404(Category, id=edit_id)
@@ -556,7 +636,6 @@ def admin_brand_management(request):
             messages.success(request, 'Marca eliminada exitosamente.')
             return redirect('admin_brand_management')
         else:
-            # Handle create or update
             brand_id = request.POST.get('brand_id')
             if brand_id:
                 brand_to_edit = get_object_or_404(Brand, id=brand_id)
@@ -569,7 +648,6 @@ def admin_brand_management(request):
                 messages.success(request, f'Marca {"actualizada" if brand_id else "creada"} exitosamente.')
                 return redirect('admin_brand_management')
     else:
-        # Handle GET with edit query parameter
         edit_id = request.GET.get('edit')
         if edit_id:
             brand_to_edit = get_object_or_404(Brand, id=edit_id)
@@ -603,7 +681,6 @@ def admin_coupon_management(request):
             messages.success(request, 'Cupón eliminado exitosamente.')
             return redirect('admin_coupon_management')
         else:
-            # Handle create or update
             coupon_id = request.POST.get('coupon_id')
             if coupon_id:
                 coupon_to_edit = get_object_or_404(Coupon, id=coupon_id)
@@ -616,7 +693,6 @@ def admin_coupon_management(request):
                 messages.success(request, f'Cupón {"actualizado" if coupon_id else "creado"} exitosamente.')
                 return redirect('admin_coupon_management')
     else:
-        # Handle GET with edit query parameter
         edit_id = request.GET.get('edit')
         if edit_id:
             coupon_to_edit = get_object_or_404(Coupon, id=edit_id)
@@ -638,6 +714,7 @@ def admin_refund_management(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'admin':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     if request.method == 'POST':
         refund_id = request.POST.get('refund_id')
         action = request.POST.get('action')
@@ -654,15 +731,16 @@ def admin_refund_management(request):
             refund.delete()
             messages.success(request, 'Reembolso eliminado exitosamente.')
         return redirect('admin_refund_management')
+    
     refunds = Refund.objects.all()
     return render(request, 'admin/refund_management.html', {'refunds': refunds})
 
-# Seller Views
 @login_required
 def seller_orders(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'seller':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     if request.method == 'POST':
         order_id = request.POST.get('order_id')
         action = request.POST.get('action')
@@ -672,12 +750,13 @@ def seller_orders(request):
             order.save()
             messages.success(request, 'Pedido aprobado.')
         return redirect('seller_orders')
+    
     orders = Order.objects.all()
     return render(request, 'seller/orders.html', {'orders': orders})
 
 @login_required
 def seller_products(request):
-    if not hasattr(request.user, 'employee') or request.user.employee.role != 'seller':
+    if not request.user.is_authenticated or not hasattr(request.user, 'employee') or request.user.employee.role != 'seller':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
     
@@ -692,7 +771,6 @@ def seller_products(request):
             messages.success(request, 'Producto eliminado exitosamente.')
             return redirect('seller_products')
         else:
-            # Handle create or update
             product_id = request.POST.get('product_id')
             if product_id:
                 product_to_edit = get_object_or_404(Product, id=product_id)
@@ -701,11 +779,10 @@ def seller_products(request):
             else:
                 form = ProductForm(request.POST, request.FILES)
             if form.is_valid():
-                form.save()
+                product = form.save()
                 messages.success(request, f'Producto {"actualizado" if product_id else "creado"} exitosamente.')
                 return redirect('seller_products')
     else:
-        # Handle GET with edit query parameter
         edit_id = request.GET.get('edit')
         if edit_id:
             product_to_edit = get_object_or_404(Product, id=edit_id)
@@ -715,19 +792,19 @@ def seller_products(request):
             form = ProductForm()
     
     products = Product.objects.all()
-    return render(request, 'seller/products.html', {
+    return render(request, 'seller_products.html', {
         'form': form,
         'products': products,
         'editing': editing,
         'product_to_edit': product_to_edit
     })
 
-# Warehouse Views
 @login_required
 def warehouse_orders(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'warehouse':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     if request.method == 'POST':
         action = request.POST.get('action')
         order_id = request.POST.get('order_id')
@@ -737,6 +814,7 @@ def warehouse_orders(request):
             order.save()
             messages.success(request, 'Orden preparada exitosamente.')
         return redirect('warehouse_orders')
+    
     orders = Order.objects.filter(status__in=['approved', 'prepared'])
     return render(request, 'warehouse/orders.html', {'orders': orders})
 
@@ -745,6 +823,7 @@ def warehouse_order_detail(request, order_id):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'warehouse':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     order = get_object_or_404(Order, id=order_id)
     return render(request, 'warehouse/order_detail.html', {'order': order})
 
@@ -753,28 +832,30 @@ def warehouse_inventory(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'warehouse':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     if request.method == 'POST':
         action = request.POST.get('action')
-        if action == 'update_stock':
+        if action == 'stock_update':
             product_id = request.POST.get('product_id')
-            stock = int(request.POST.get('stock', 0))
+            stock = int(request.POST.get('stock', '0'))
             product = get_object_or_404(Product, id=product_id)
             if stock >= 0:
                 product.stock = stock
                 product.save()
-                messages.success(request, f'Stock de {product.name} actualizado exitosamente.')
+                messages.success(request, f'Stock actualizado para {product.name}.')
             else:
-                messages.error(request, 'El stock no puede ser negativo.')
+                messages.error(request, 'El stock debe ser mayor o igual a cero.')
             return redirect('warehouse_inventory')
+    
     products = Product.objects.all()
     return render(request, 'warehouse/inventory.html', {'products': products})
 
-# Accountant Views
 @login_required
 def accountant_payments(request):
     if not hasattr(request.user, 'employee') or request.user.employee.role != 'accountant':
         messages.error(request, 'Acceso denegado.')
         return redirect('index')
+    
     if request.method == 'POST':
         payment_id = request.POST.get('payment_id')
         action = request.POST.get('action')
@@ -783,19 +864,19 @@ def accountant_payments(request):
             payment.confirmed = True
             payment.confirmed_by = request.user
             payment.save()
-            messages.success(request, 'Pago confirmado.')
+            messages.success(request, 'Pago confirmado exitosamente.')
         return redirect('accountant_payments')
+    
     payments = Payment.objects.all()
     return render(request, 'accountant/payments.html', {'payments': payments})
 
-# Stripe Payment Views
 @csrf_exempt
 def create_payment_intent(request):
     try:
         data = json.loads(request.body)
         order_id = data.get('order_id')
-        amount = data.get('amount')  # En centavos
-        order = Order.objects.get(id=order_id)
+        amount = data.get('amount')
+        order = get_object_or_404(Order, id=order_id)
         user = order.user
 
         user_profile, created = UserProfile.objects.get_or_create(user=user)
@@ -805,7 +886,7 @@ def create_payment_intent(request):
             user_profile.save()
 
         intent = stripe.PaymentIntent.create(
-            amount=int(amount * 100),  # Convertir a centavos
+            amount=int(amount),
             currency='clp',
             payment_method_types=['card'],
             customer=user_profile.stripe_customer_id,
@@ -814,7 +895,7 @@ def create_payment_intent(request):
 
         payment = Payment.objects.create(
             order=order,
-            amount=amount,
+            amount=amount / 100,
             method='credit',
             stripe_payment_intent_id=intent['id']
         )
@@ -826,6 +907,7 @@ def create_payment_intent(request):
     except Order.DoesNotExist:
         return JsonResponse({'error': 'Orden no encontrada'}, status=404)
     except Exception as e:
+        logger.error(f"Error creating payment intent: {str(e)}")
         return JsonResponse({'error': str(e)}, status=400)
 
 @csrf_exempt
@@ -839,33 +921,99 @@ def stripe_webhook(request):
             payload, sig_header, endpoint_secret
         )
     except stripe.error.SignatureVerificationError:
+        logger.error("Invalid webhook signature")
         return JsonResponse({'status': 'invalid signature'}, status=400)
     except stripe.error.StripeError as e:
+        logger.error(f"Stripe error: {str(e)}")
         return JsonResponse({'status': 'stripe error', 'error': str(e)}, status=400)
 
     if event['type'] == 'payment_intent.succeeded':
         payment_intent = event['data']['object']
-        order_id = payment_intent['metadata']['order_id']
+        order_id = payment_intent.get('metadata', {}).get('order_id')
         try:
-            payment = Payment.objects.get(stripe_payment_intent_id=payment_intent['id'])
+            payment = Payment.objects.get(stripe_payment_intent_id=payment_intent.id)
             payment.confirmed = True
-            payment.confirmed_by = None  # Webhook confirma automáticamente
+            payment.confirmed_by = None
             payment.save()
             order = payment.order
             order.status = 'paid'
             order.save()
+
+            # Reducir stock
+            for item in order.items.all():
+                product = item.product
+                if product.stock >= item.quantity:
+                    product.stock -= item.quantity
+                    product.save()
+                    logger.debug(f"Stock reducido para {product.name}: -{item.quantity}, Nuevo stock: {product.stock}")
+                else:
+                    logger.error(f"Stock insuficiente para {product.name} en orden {order_id}")
+                    order.status = 'error'
+                    order.save()
+                    return JsonResponse({'status': 'insufficient stock'}, status=400)
+
+            # Limpiar carrito
+            cart = Cart.objects.get(user=order.user)
+            cart.items.all().delete()
+            logger.info(f"Carrito limpiado para usuario {order.user.username}")
+
             return JsonResponse({'status': 'payment confirmed'})
         except Payment.DoesNotExist:
+            logger.error(f"Pago no encontrado: ID {payment_intent.id}")
             return JsonResponse({'status': 'payment not found'}, status=404)
+        except Order.DoesNotExist:
+            logger.error(f"Orden no encontrada: {order_id}")
+            return JsonResponse({'status': 'order not found'}, status=404)
     elif event['type'] == 'payment_intent.payment_failed':
         payment_intent = event['data']['object']
         try:
-            payment = Payment.objects.get(stripe_payment_intent_id=payment_intent['id'])
+            payment = Payment.objects.get(stripe_payment_intent_id=payment_intent.id)
             payment.confirmed = False
             payment.save()
+            logger.info(f"Pago fallido: ID {payment_intent.id}")
             return JsonResponse({'status': 'payment failed'})
         except Payment.DoesNotExist:
+            logger.error(f"Pago no encontrado: ID {payment_intent.id}")
             return JsonResponse({'status': 'payment not found'}, status=404)
+    elif event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        order_id = session.get('metadata', {}).get('order_id')
+        try:
+            order = Order.objects.get(id=order_id)
+            payment = Payment.objects.create(
+                order=order,
+                amount=order.get_total(),
+                method='credit',
+                stripe_payment_intent_id=session.payment_intent,
+                confirmed=True
+            )
+            order.status = 'processing'
+            order.save()
+
+            # Reducir stock
+            for item in order.items.all():
+                product = item.product
+                if product.stock >= item.quantity:
+                    product.stock -= item.quantity
+                    product.save()
+                    logger.debug(f"Stock reducido para {product.name}: -{item.quantity}, Nuevo stock: {product.stock}")
+                else:
+                    logger.error(f"Stock insuficiente para {product.name} en orden {order_id}")
+                    order.status = 'error'
+                    order.save()
+                    return JsonResponse({'status': 'insufficient stock'}, status=400)
+
+            # Limpiar carrito
+            cart = Cart.objects.get(user=order.user)
+            cart.items.all().delete()
+            logger.info(f"Carrito limpiado para: {order.user.username}")
+
+            return JsonResponse({'status': 'payment processed'})
+        except Order.DoesNotExist:
+            logger.error(f"Orden no encontrada: {order_id}")
+            return JsonResponse({'status': 'order not found'}, status=404)
+        except Exception as e:
+            logger.error(f"Error procesando webhook: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=400)
 
     return JsonResponse({'status': 'event handled'})
-

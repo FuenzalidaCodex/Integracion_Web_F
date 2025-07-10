@@ -1,3 +1,4 @@
+
 """
 Django settings for proyecto_ferremas project.
 
@@ -15,7 +16,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -27,9 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -73,15 +71,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'proyecto_ferremas.wsgi.application'
 
-
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
-'default': {
+    'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'ferremas_db',
-        'USER': 'root', 
+        'USER': 'root',
         'PASSWORD': 'root',
         'HOST': 'localhost',
         'PORT': '3306',
@@ -91,10 +86,7 @@ DATABASES = {
     }
 }
 
-
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -110,40 +102,46 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-#STATIC_URL = 'static/'
+# Static files
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / "core/static"]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-STRIPE_PUBLISHABLE_KEY = 'pk_test_...'  # Reemplaza con tu clave pública de Stripe
-STRIPE_SECRET_KEY = 'sk_test_...'  # Reemplaza con tu clave secreta de Stripe
-STRIPE_WEBHOOK_SECRET = 'whsec_...'  # Reemplaza con tu webhook secret
+# Stripe configuration
+STRIPE_PUBLISHABLE_KEY = 'pk_test_51RQZvBEoXQPVszfv8csTtEas9QrZPBNf13Yi775yET8yyaMtL7DoiIyfxV4V1paw4Hq2yp6KaCJuBVvvBoo0MuIG00ljTQBqqt'
+STRIPE_SECRET_KEY = 'sk_test_51RQZvBEoXQPVszfvtF4NlJZPh9DM4iaW7nf3xsvMmMaWrShKnJ3mteQhL70cPBQYnTf0uScArhzX5hsqmxBkvSEB00FguKC70T'
+STRIPE_WEBHOOK_SECRET = 'whsec_xwVbKButBar5oGJrnjHUMajJkCFYc4IU'
 
 LOGIN_URL = '/login/'
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'core/static']
 
-
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
+        },
+    },
+    'loggers': {
+        'core.views': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}

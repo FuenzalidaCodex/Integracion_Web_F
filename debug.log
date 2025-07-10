@@ -1,0 +1,21 @@
+Carrito para Cliente_Premium: ID 3, Creado: False
+Solicitud POST: <QueryDict: {'csrfmiddlewaretoken': ['RRl6ujmH7uWPrTWCp8Z2IJl6Scbt1LfapslX7PAw60wXkyXggkNZADECArwyb6lM'], 'action': ['add'], 'product_id': ['2'], 'quantity': ['1']}>
+Añadido nuevo ítem: Alicate Bahco, Cantidad 1
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Solicitud POST: <QueryDict: {'csrfmiddlewaretoken': ['FnHWHUr31Jkrc4M5NqPwGaoZRXkdLxLHdYHNkqFS0fUz5JNJECDty4HvzcFiVSRj'], 'action': ['add'], 'product_id': ['3'], 'quantity': ['1']}>
+Añadido nuevo ítem: Andamio, Cantidad 1
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1']
+Carrito para Cliente_Premium: ID 3, Creado: False
+Solicitud POST: <QueryDict: {'csrfmiddlewaretoken': ['qXEqoPvPaOTx5Kq5GhBqaE9fwxVnPur3YyEh1lJE9ktFYprJxtpn2ysLeMgsZPxF'], 'action': ['add'], 'product_id': ['6'], 'quantity': ['1']}>
+Añadido nuevo ítem: Caja Truper, Cantidad 1
+Carrito para Cliente_Premium: ID 3, Creado: False
+Ítems en carrito ID 3: ['Alicate Bahco x 1', 'Andamio x 1', 'Caja Truper x 1']

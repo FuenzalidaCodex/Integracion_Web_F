@@ -13,6 +13,8 @@ from core.serializers import (
     CartSerializer, OrderSerializer, PaymentSerializer, CouponSerializer,
     RefundSerializer, EmployeeSerializer, UserProfileSerializer, UserSerializer
 )
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -52,6 +54,7 @@ class AddressViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
 
+    
 class CartViewSet(viewsets.ModelViewSet):
     queryset = Cart.objects.all()
     serializer_class = CartSerializer
@@ -59,6 +62,14 @@ class CartViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Cart.objects.filter(user=self.request.user)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def clear(self, request, pk=None):
+        cart = self.get_object()
+        if cart.user != request.user:
+            return Response({'error': 'No tienes permiso para limpiar este carrito'}, status=403)
+        cart.items.all().delete()
+        return Response({'status': 'cart cleared'}, status=200)
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()

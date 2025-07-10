@@ -18,23 +18,51 @@
         {% csrf_token %}
         <div class="mb-3">
           <label for="{{ form.street_address.id_for_label }}" class="form-label">Dirección</label>
-          <input type="text" name="{{ form.street_address.name }}" id="{{ form.street_address.id_for_label }}" class="form-control" value="{{ form.street_address.value|default:'' }}" aria-label="Dirección" required>
+          {{ form.street_address }}
           {% if form.street_address.errors %}
             <div class="text-danger">{{ form.street_address.errors }}</div>
           {% endif %}
         </div>
         <div class="mb-3">
+          <label for="{{ form.apartment_address.id_for_label }}" class="form-label">Departamento (opcional)</label>
+          {{ form.apartment_address }}
+          {% if form.apartment_address.errors %}
+            <div class="text-danger">{{ form.apartment_address.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
           <label for="{{ form.city.id_for_label }}" class="form-label">Ciudad</label>
-          <input type="text" name="{{ form.city.name }}" id="{{ form.city.id_for_label }}" class="form-control" value="{{ form.city.value|default:'' }}" aria-label="Ciudad" required>
+          {{ form.city }}
           {% if form.city.errors %}
             <div class="text-danger">{{ form.city.errors }}</div>
           {% endif %}
         </div>
         <div class="mb-3">
           <label for="{{ form.country.id_for_label }}" class="form-label">País</label>
-          <input type="text" name="{{ form.country.name }}" id="{{ form.country.id_for_label }}" class="form-control" value="{{ form.country.value|default:'Chile' }}" aria-label="País" required>
+          {{ form.country }}
           {% if form.country.errors %}
             <div class="text-danger">{{ form.country.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.zip_code.id_for_label }}" class="form-label">Código Postal</label>
+          {{ form.zip_code }}
+          {% if form.zip_code.errors %}
+            <div class="text-danger">{{ form.zip_code.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label for="{{ form.address_type.id_for_label }}" class="form-label">Tipo de Dirección</label>
+          {{ form.address_type }}
+          {% if form.address_type.errors %}
+            <div class="text-danger">{{ form.address_type.errors }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-3 form-check">
+          {{ form.default }}
+          <label for="{{ form.default.id_for_label }}" class="form-check-label">Establecer como predeterminada</label>
+          {% if form.default.errors %}
+            <div class="text-danger">{{ form.default.errors }}</div>
           {% endif %}
         </div>
         <button type="submit" class="btn btn-primary">Añadir Dirección</button>
